@@ -1,0 +1,4 @@
+# Rusty Reckoning ⚖️🏴‍☠️
+```
+cargo run
+```
