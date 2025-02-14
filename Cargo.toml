@@ -3,4 +3,15 @@ name = "rusty-reckoning"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+
 [dependencies]
+csv = "1.3.1"
+rust_decimal = { version = "1.36.0", features = ["serde"] }
+serde = { version = "1.0.217", features = ["derive"] }
+
+[dev-dependencies]
+rust_decimal_macros = "1.36.0"
