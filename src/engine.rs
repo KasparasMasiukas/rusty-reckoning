@@ -6,6 +6,8 @@ use crate::{Transaction, TransactionType};
 #[derive(Debug)]
 pub enum Error {
     AccountLocked,
+    AccountNotFound,
+    AmountMustBePositive,
     DuplicateTransaction,
     InsufficientFunds,
     InvalidTransaction,
@@ -34,6 +36,7 @@ struct StoredDeposit {
     disputed: bool,
 }
 
+#[derive(Default)]
 pub struct Engine {
     accounts: HashMap<u16, Account>,
     /// Deposits can be disputed, so this is a map of all successful deposits
@@ -67,7 +70,9 @@ impl Engine {
             ),
             TransactionType::Dispute => self.process_dispute(transaction.client, transaction.tx),
             TransactionType::Resolve => self.process_resolve(transaction.client, transaction.tx),
-            TransactionType::Chargeback => self.process_chargeback(transaction.client, transaction.tx),
+            TransactionType::Chargeback => {
+                self.process_chargeback(transaction.client, transaction.tx)
+            }
         }
     }
 
@@ -83,13 +88,20 @@ impl Engine {
     }
 
     /// Gets a mutable account entry, or creates one if it doesn't exist.
-    fn get_mut_account(&mut self, client: u16) -> &mut Account {
+    fn get_or_create_mut_account(&mut self, client: u16) -> &mut Account {
         self.accounts.entry(client).or_insert_with(|| Account {
             id: client,
             available: Decimal::ZERO,
             held: Decimal::ZERO,
             locked: false,
         })
+    }
+
+    /// Gets an account entry, or returns an error if it doesn't exist.
+    fn get_mut_account(&mut self, client: u16) -> Result<&mut Account, Error> {
+        self.accounts
+            .get_mut(&client)
+            .ok_or(Error::AccountNotFound)
     }
 
     /// Gets a stored desposit entry if it exists, and validates that it belongs to the client.
@@ -107,6 +119,9 @@ impl Engine {
     }
 
     fn process_deposit(&mut self, client: u16, tx: u32, amount: Decimal) -> Result<(), Error> {
+        if amount <= Decimal::ZERO {
+            return Err(Error::AmountMustBePositive);
+        }
         if self.processed_transactions.contains(&tx) {
             return Err(Error::DuplicateTransaction);
         }
@@ -119,17 +134,20 @@ impl Engine {
             },
         );
 
-        let account = self.get_mut_account(client);
+        let account = self.get_or_create_mut_account(client);
         account.available += amount;
         self.processed_transactions.insert(tx);
         Ok(())
     }
 
     fn process_withdrawal(&mut self, client: u16, tx: u32, amount: Decimal) -> Result<(), Error> {
+        if amount <= Decimal::ZERO {
+            return Err(Error::AmountMustBePositive);
+        }
         if self.processed_transactions.contains(&tx) {
             return Err(Error::DuplicateTransaction);
         }
-        let account = self.get_mut_account(client);
+        let account = self.get_mut_account(client)?;
         if account.available < amount {
             return Err(Error::InsufficientFunds);
         }
@@ -146,7 +164,7 @@ impl Engine {
         deposit.disputed = true;
 
         let amount = deposit.amount;
-        let account = self.get_mut_account(client);
+        let account = self.get_or_create_mut_account(client);
         account.held += amount;
         account.available -= amount;
         Ok(())
@@ -160,7 +178,7 @@ impl Engine {
         deposit.disputed = false;
 
         let amount = deposit.amount;
-        let account = self.get_mut_account(client);
+        let account = self.get_or_create_mut_account(client);
         account.held -= amount;
         account.available += amount;
         Ok(())
@@ -174,7 +192,7 @@ impl Engine {
         deposit.disputed = false;
 
         let amount = deposit.amount;
-        let account = self.get_mut_account(client);
+        let account = self.get_or_create_mut_account(client);
         account.held -= amount;
         account.locked = true;
         Ok(())

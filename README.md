@@ -16,6 +16,9 @@ cargo run -- example_input.csv
     * This matches the spec, saying that "available funds should decrease" and "held funds should increase" - this would not make sense if withdrawals could be disputed.
     * Additionally, it makes sense logically - if a client successfully withdraws funds, disputing it would be meaningless.
     * Therefore, to support disputes in a memory-efficient way, in main memory we only store transactions that are successful deposits.
-* Disputes may make the account's available funds go into negative.
+* Deposit and withdrawal transaction amounts must be positive (>0), otherwise the transaction is rejected.
+* Disputes may cause the account's available funds to go to negative.
     * E.g. a client deposits $100, withdraws $50 (available = $50), then disputes the deposit. Result: available = $-50, held = $100. Then if chargeback occurs, the client's account will be locked with $-50 total funds.
 * Once an account is locked, no further transactions are processed for that account.
+* A new client record would only be created as part of their first deposit transaction.
+    * A withdrawal attempt from a non-existent client will be rejected without creating a record.
