@@ -15,7 +15,7 @@ use serde::ser::Serializer;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionType {
     Deposit,
@@ -25,7 +25,7 @@ pub enum TransactionType {
     Chargeback,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct Transaction {
     #[serde(rename = "type")]
     pub tx_type: TransactionType,
