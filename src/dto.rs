@@ -1,4 +1,6 @@
 use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
+use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -17,7 +19,16 @@ pub struct TransactionDto {
     pub tx_type: TransactionType,
     pub client: u16,
     pub tx: u32,
+    #[serde(deserialize_with = "deserialize_decimal_4dp")]
     pub amount: Option<Decimal>,
+}
+
+fn deserialize_decimal_4dp<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<Decimal>::deserialize(deserializer)
+        .map(|opt_dec| opt_dec.map(|dec| dec.round_dp_with_strategy(4, RoundingStrategy::ToZero)))
 }
 
 #[cfg(test)]
@@ -129,6 +140,29 @@ mod tests {
                 client: u16::MAX,
                 tx: u32::MAX,
                 amount: Some(dec!(1.0)),
+            }
+        );
+    }
+
+    #[test]
+    fn test_rounds_to_4_decimal_places() {
+        assert_eq!(
+            parse_csv_row("deposit,1,1,0.12345").unwrap(),
+            TransactionDto {
+                tx_type: TransactionType::Deposit,
+                client: 1,
+                tx: 1,
+                amount: Some(dec!(0.1234)), // Rounded down from 0.12345
+            }
+        );
+
+        assert_eq!(
+            parse_csv_row("deposit,1,1,0.123499999").unwrap(),
+            TransactionDto {
+                tx_type: TransactionType::Deposit,
+                client: 1,
+                tx: 1,
+                amount: Some(dec!(0.1234)), // Rounded down from 0.123499999
             }
         );
     }

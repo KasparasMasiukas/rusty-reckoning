@@ -10,8 +10,12 @@ Settling disputes and ensuring fair trade on the high seas.
 cargo run -- example_input.csv
 ```
 
-### Coverage
-```
-cargo install cargo-llvm-cov
-cargo llvm-cov --lcov --output-path lcov.info 
-```
+### Assumptions
+* When parsing amounts, we round down to 4 decimal places. E.g. input amount 0.123499999 will be parsed as 0.1234.
+* Only deposits can be disputed.
+    * This matches the spec, saying that "available funds should decrease" and "held funds should increase" - this would not make sense if withdrawals could be disputed.
+    * Additionally, it makes sense logically - if a client successfully withdraws funds, disputing it would be meaningless.
+    * Therefore, to support disputes in a memory-efficient way, in main memory we only store transactions that are successful deposits.
+* Disputes may make the account's available funds go into negative.
+    * E.g. a client deposits $100, withdraws $50 (available = $50), then disputes the deposit. Result: available = $-50, held = $100. Then if chargeback occurs, the client's account will be locked with $-50 total funds.
+* Once an account is locked, no further transactions are processed for that account.
