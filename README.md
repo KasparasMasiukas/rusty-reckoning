@@ -3,7 +3,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/KasparasMasiukas/rusty-reckoning/badge.svg?branch=master)](https://coveralls.io/github/KasparasMasiukas/rusty-reckoning?branch=master)
 [![Security Audit](https://github.com/KasparasMasiukas/rusty-reckoning/actions/workflows/security.yml/badge.svg)](https://github.com/KasparasMasiukas/rusty-reckoning/actions/workflows/security.yml)
 
-Settling disputes and ensuring fair trade on the high seas. 
+Settling disputes and ensuring fair trade on the high seas. 🌊
 
 ### Running
 ```
@@ -22,3 +22,5 @@ cargo run -- example_input.csv
 * Once an account is locked, no further transactions are processed for that account.
 * A new client record would only be created as part of their first deposit transaction.
     * A withdrawal attempt from a non-existent client will be rejected without creating a record.
+* If a transaction is disputed and then resolved, the same transaction **can** be disputed again.
+    * There is no mention of this not being allowed in the spec, so we keep the logic simple and allow it.

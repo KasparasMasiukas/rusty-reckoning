@@ -1,61 +1,23 @@
 use rust_decimal::Decimal;
-use std::collections::{HashMap, HashSet};
 
-use crate::{Transaction, TransactionType};
-
-#[derive(Debug)]
-pub enum Error {
-    AccountLocked,
-    AccountNotFound,
-    AmountMustBePositive,
-    DuplicateTransaction,
-    InsufficientFunds,
-    InvalidTransaction,
-    TransactionAlreadyDisputed,
-    TransactionNotDisputed,
-    TransactionNotFound,
-}
-
-#[derive(Debug)]
-struct Account {
-    id: u16,
-    available: Decimal,
-    held: Decimal,
-    locked: bool,
-}
-
-impl Account {
-    pub fn total(&self) -> Decimal {
-        self.available + self.held
-    }
-}
-
-struct StoredDeposit {
-    client: u16,
-    amount: Decimal,
-    disputed: bool,
-}
+use crate::{AccountsStore, Error, Transaction, TransactionType, TransactionsStore};
 
 #[derive(Default)]
 pub struct Engine {
-    accounts: HashMap<u16, Account>,
-    /// Deposits can be disputed, so this is a map of all successful deposits
-    deposits: HashMap<u32, StoredDeposit>,
-    /// Set of all successfully processed deposit/withdrawal transaction IDs to prevent duplicates
-    processed_transactions: HashSet<u32>,
+    accounts: AccountsStore,
+    transactions: TransactionsStore,
 }
 
 impl Engine {
     pub fn new() -> Self {
         Self {
-            accounts: HashMap::new(),
-            deposits: HashMap::new(),
-            processed_transactions: HashSet::new(),
+            accounts: AccountsStore::new(),
+            transactions: TransactionsStore::new(),
         }
     }
 
     pub fn process_transaction(&mut self, transaction: Transaction) -> Result<(), Error> {
-        self.check_account_lock(transaction.client)?;
+        self.accounts.check_account_lock(transaction.client)?;
 
         match transaction.tx_type {
             TransactionType::Deposit => self.process_deposit(
@@ -76,67 +38,18 @@ impl Engine {
         }
     }
 
-    /// Checks that an account is not locked. This should be called early to prevent
-    /// processing transactions for locked accounts.
-    fn check_account_lock(&self, client: u16) -> Result<(), Error> {
-        if let Some(account) = self.accounts.get(&client) {
-            if account.locked {
-                return Err(Error::AccountLocked);
-            }
-        }
-        Ok(())
-    }
-
-    /// Gets a mutable account entry, or creates one if it doesn't exist.
-    fn get_or_create_mut_account(&mut self, client: u16) -> &mut Account {
-        self.accounts.entry(client).or_insert_with(|| Account {
-            id: client,
-            available: Decimal::ZERO,
-            held: Decimal::ZERO,
-            locked: false,
-        })
-    }
-
-    /// Gets an account entry, or returns an error if it doesn't exist.
-    fn get_mut_account(&mut self, client: u16) -> Result<&mut Account, Error> {
-        self.accounts
-            .get_mut(&client)
-            .ok_or(Error::AccountNotFound)
-    }
-
-    /// Gets a stored desposit entry if it exists, and validates that it belongs to the client.
-    /// Returns a mutable reference to the deposit, or an error if the deposit does not exist or
-    /// belongs to a different client.
-    fn get_mut_deposit(&mut self, client: u16, tx: u32) -> Result<&mut StoredDeposit, Error> {
-        let deposit = self
-            .deposits
-            .get_mut(&tx)
-            .ok_or(Error::TransactionNotFound)?;
-        if deposit.client != client {
-            return Err(Error::InvalidTransaction);
-        }
-        Ok(deposit)
-    }
-
     fn process_deposit(&mut self, client: u16, tx: u32, amount: Decimal) -> Result<(), Error> {
         if amount <= Decimal::ZERO {
             return Err(Error::AmountMustBePositive);
         }
-        if self.processed_transactions.contains(&tx) {
+        if self.transactions.is_processed(tx) {
             return Err(Error::DuplicateTransaction);
         }
-        self.deposits.insert(
-            tx,
-            StoredDeposit {
-                client,
-                amount,
-                disputed: false,
-            },
-        );
 
-        let account = self.get_or_create_mut_account(client);
+        self.transactions.store_deposit(tx, client, amount);
+        let account = self.accounts.get_or_create_mut(client);
         account.available += amount;
-        self.processed_transactions.insert(tx);
+        self.transactions.mark_processed(tx);
         Ok(())
     }
 
@@ -144,55 +57,56 @@ impl Engine {
         if amount <= Decimal::ZERO {
             return Err(Error::AmountMustBePositive);
         }
-        if self.processed_transactions.contains(&tx) {
+        if self.transactions.is_processed(tx) {
             return Err(Error::DuplicateTransaction);
         }
-        let account = self.get_mut_account(client)?;
+
+        let account = self.accounts.get_mut(client)?;
         if account.available < amount {
             return Err(Error::InsufficientFunds);
         }
         account.available -= amount;
-        self.processed_transactions.insert(tx);
+        self.transactions.mark_processed(tx);
         Ok(())
     }
 
     fn process_dispute(&mut self, client: u16, tx: u32) -> Result<(), Error> {
-        let deposit = self.get_mut_deposit(client, tx)?;
+        let deposit = self.transactions.get_mut_deposit(client, tx)?;
         if deposit.disputed {
             return Err(Error::TransactionAlreadyDisputed);
         }
         deposit.disputed = true;
 
         let amount = deposit.amount;
-        let account = self.get_or_create_mut_account(client);
+        let account = self.accounts.get_or_create_mut(client);
         account.held += amount;
         account.available -= amount;
         Ok(())
     }
 
     fn process_resolve(&mut self, client: u16, tx: u32) -> Result<(), Error> {
-        let deposit = self.get_mut_deposit(client, tx)?;
+        let deposit = self.transactions.get_mut_deposit(client, tx)?;
         if !deposit.disputed {
             return Err(Error::TransactionNotDisputed);
         }
         deposit.disputed = false;
 
         let amount = deposit.amount;
-        let account = self.get_or_create_mut_account(client);
+        let account = self.accounts.get_or_create_mut(client);
         account.held -= amount;
         account.available += amount;
         Ok(())
     }
 
     fn process_chargeback(&mut self, client: u16, tx: u32) -> Result<(), Error> {
-        let deposit = self.get_mut_deposit(client, tx)?;
+        let deposit = self.transactions.get_mut_deposit(client, tx)?;
         if !deposit.disputed {
             return Err(Error::TransactionNotDisputed);
         }
         deposit.disputed = false;
 
         let amount = deposit.amount;
-        let account = self.get_or_create_mut_account(client);
+        let account = self.accounts.get_or_create_mut(client);
         account.held -= amount;
         account.locked = true;
         Ok(())
