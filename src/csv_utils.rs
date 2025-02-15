@@ -9,7 +9,7 @@ use std::path::Path;
 
 /// Creates an iterator that reads CSV records from a file.
 /// Each record is deserialized into type T.
-pub fn read_csv<T, P>(path: P) -> csv::Result<impl Iterator<Item = csv::Result<T>>>
+pub fn read_csv_into_iter<T, P>(path: P) -> csv::Result<impl Iterator<Item = csv::Result<T>>>
 where
     T: DeserializeOwned,
     P: AsRef<Path>,
@@ -44,7 +44,7 @@ mod tests {
     #[test]
     fn test_read_csv() -> csv::Result<()> {
         let transactions: Vec<Transaction> =
-            read_csv("data/example_input.csv")?.collect::<Result<_, _>>()?;
+            read_csv_into_iter("data/example_input.csv")?.collect::<Result<_, _>>()?;
 
         let expected_transactions = vec![
             Transaction {
