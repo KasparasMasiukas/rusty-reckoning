@@ -515,47 +515,6 @@ mod tests {
     }
 
     #[test]
-    fn test_locked_account_rejects_transactions() {
-        let mut engine = Engine::new();
-
-        // Make a deposit
-        engine
-            .process_transaction(create_transaction(
-                TransactionType::Deposit,
-                1,
-                1,
-                Some(dec!(100.0)),
-            ))
-            .unwrap();
-
-        // Dispute and chargeback to lock the account
-        engine
-            .process_transaction(create_transaction(TransactionType::Dispute, 1, 1, None))
-            .unwrap();
-        engine
-            .process_transaction(create_transaction(TransactionType::Chargeback, 1, 1, None))
-            .unwrap();
-
-        // Try new deposit
-        let result = engine.process_transaction(create_transaction(
-            TransactionType::Deposit,
-            1,
-            2,
-            Some(dec!(50.0)),
-        ));
-        assert!(matches!(result, Err(Error::AccountLocked)));
-
-        // Try withdrawal
-        let result = engine.process_transaction(create_transaction(
-            TransactionType::Withdrawal,
-            1,
-            3,
-            Some(dec!(50.0)),
-        ));
-        assert!(matches!(result, Err(Error::AccountLocked)));
-    }
-
-    #[test]
     fn test_redispute_after_resolve() {
         let mut engine = Engine::new();
 
@@ -655,5 +614,119 @@ mod tests {
         assert_eq!(account.held, dec!(0.0));
         assert_eq!(account.total(), dec!(-75.0));
         assert!(account.locked);
+    }
+
+    #[test]
+    fn test_cannot_dispute_withdrawal() {
+        let mut engine = Engine::new();
+
+        // First deposit to have funds
+        engine
+            .process_transaction(create_transaction(
+                TransactionType::Deposit,
+                1,
+                1,
+                Some(dec!(100.0)),
+            ))
+            .unwrap();
+
+        // Make a withdrawal
+        engine
+            .process_transaction(create_transaction(
+                TransactionType::Withdrawal,
+                1,
+                2,
+                Some(dec!(50.0)),
+            ))
+            .unwrap();
+
+        // Try to dispute the withdrawal
+        let result =
+            engine.process_transaction(create_transaction(TransactionType::Dispute, 1, 2, None));
+        assert!(matches!(result, Err(Error::TransactionNotFound)));
+
+        // Verify account state hasn't changed
+        let account = engine.accounts().next().unwrap();
+        assert_eq!(account.available, dec!(50.0));
+        assert_eq!(account.held, dec!(0.0));
+        assert_eq!(account.total(), dec!(50.0));
+    }
+
+    #[test]
+    fn test_locked_account_rejects_transactions() {
+        let mut engine = Engine::new();
+
+        // Make a deposit
+        engine
+            .process_transaction(create_transaction(
+                TransactionType::Deposit,
+                1,
+                1,
+                Some(dec!(100.0)),
+            ))
+            .unwrap();
+
+        // Lock the account through dispute + chargeback
+        engine
+            .process_transaction(create_transaction(TransactionType::Dispute, 1, 1, None))
+            .unwrap();
+        engine
+            .process_transaction(create_transaction(TransactionType::Chargeback, 1, 1, None))
+            .unwrap();
+
+        // Try various operations on locked account
+        let deposit = create_transaction(TransactionType::Deposit, 1, 2, Some(dec!(50.0)));
+        let withdrawal = create_transaction(TransactionType::Withdrawal, 1, 3, Some(dec!(20.0)));
+        let dispute = create_transaction(TransactionType::Dispute, 1, 1, None);
+        let resolve = create_transaction(TransactionType::Resolve, 1, 1, None);
+        let chargeback = create_transaction(TransactionType::Chargeback, 1, 1, None);
+
+        for tx in [deposit, withdrawal, dispute, resolve, chargeback] {
+            assert!(matches!(
+                engine.process_transaction(tx.clone()),
+                Err(Error::AccountLocked)
+            ));
+        }
+    }
+
+    #[test]
+    fn test_dispute_resolve_chargeback_only_for_deposits() {
+        let mut engine = Engine::new();
+
+        // First deposit to have funds
+        engine
+            .process_transaction(create_transaction(
+                TransactionType::Deposit,
+                1,
+                1,
+                Some(dec!(100.0)),
+            ))
+            .unwrap();
+
+        // Make a withdrawal
+        engine
+            .process_transaction(create_transaction(
+                TransactionType::Withdrawal,
+                1,
+                2,
+                Some(dec!(50.0)),
+            ))
+            .unwrap();
+
+        // Try dispute/resolve/chargeback on withdrawal
+        for tx_type in [
+            TransactionType::Dispute,
+            TransactionType::Resolve,
+            TransactionType::Chargeback,
+        ] {
+            let result = engine.process_transaction(create_transaction(tx_type, 1, 2, None));
+            assert!(matches!(result, Err(Error::TransactionNotFound)));
+        }
+
+        // Verify account state hasn't changed
+        let account = engine.accounts().next().unwrap();
+        assert_eq!(account.available, dec!(50.0));
+        assert_eq!(account.held, dec!(0.0));
+        assert_eq!(account.total(), dec!(50.0));
     }
 }
