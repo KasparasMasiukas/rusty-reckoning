@@ -1,9 +1,21 @@
+//! Data Transfer Objects (DTOs) for the payment processing system.
+//!
+//! This module contains the structs and enums used for:
+//! - Parsing input transactions from CSV ([`Transaction`], [`TransactionType`])
+//! - Serializing account state to CSV output ([`AccountRow`])
+//!
+//! It also includes serialization/deserialization helpers for handling decimal numbers
+//! with 4 decimal places precision.
+
+use crate::Account;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
 use serde::de::Deserializer;
-use serde::{Deserialize, Serialize};
+use serde::ser::Serializer;
+use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionType {
     Deposit,
@@ -13,7 +25,7 @@ pub enum TransactionType {
     Chargeback,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct Transaction {
     #[serde(rename = "type")]
     pub tx_type: TransactionType,
@@ -23,12 +35,44 @@ pub struct Transaction {
     pub amount: Option<Decimal>,
 }
 
-fn deserialize_decimal_4dp<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
+#[derive(Debug, Serialize)]
+pub struct AccountRow {
+    pub client: u16,
+    #[serde(serialize_with = "serialize_decimal_4dp")]
+    pub available: Decimal,
+    #[serde(serialize_with = "serialize_decimal_4dp")]
+    pub held: Decimal,
+    #[serde(serialize_with = "serialize_decimal_4dp")]
+    pub total: Decimal,
+    pub locked: bool,
+}
+
+impl From<&Account> for AccountRow {
+    fn from(account: &Account) -> Self {
+        AccountRow {
+            client: account.id,
+            available: account.available,
+            held: account.held,
+            total: account.total(),
+            locked: account.locked,
+        }
+    }
+}
+
+pub fn deserialize_decimal_4dp<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
 where
     D: Deserializer<'de>,
 {
     Option::<Decimal>::deserialize(deserializer)
         .map(|opt_dec| opt_dec.map(|dec| dec.round_dp_with_strategy(4, RoundingStrategy::ToZero)))
+}
+
+pub fn serialize_decimal_4dp<S>(decimal: &Decimal, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let rounded = decimal.round_dp_with_strategy(4, RoundingStrategy::ToZero);
+    serializer.serialize_str(&rounded.to_string())
 }
 
 #[cfg(test)]
@@ -164,6 +208,25 @@ mod tests {
                 tx: 1,
                 amount: Some(dec!(0.1234)), // Rounded down from 0.123499999
             }
+        );
+    }
+
+    #[test]
+    fn test_account_row_serialization() {
+        let row = AccountRow {
+            client: 1,
+            available: dec!(1.23456),
+            held: dec!(2.34567),
+            total: dec!(3.58003),
+            locked: false,
+        };
+
+        let mut wtr = csv::Writer::from_writer(vec![]);
+        wtr.serialize(&row).unwrap();
+        let csv_output = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+        assert_eq!(
+            csv_output,
+            "client,available,held,total,locked\n1,1.2345,2.3456,3.5800,false\n"
         );
     }
 }

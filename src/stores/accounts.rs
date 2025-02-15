@@ -1,3 +1,11 @@
+//! Account state storage and management.
+//!
+//! Provides functionality for:
+//! - Storing and retrieving account balances
+//! - Managing available and held funds
+//! - Handling account locks
+//! - Creating new accounts on demand
+
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 

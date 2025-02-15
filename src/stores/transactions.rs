@@ -1,3 +1,10 @@
+//! Transaction history storage for dispute resolution and duplicate prevention.
+//!
+//! Maintains a record of deposits for:
+//! - Preventing duplicate transactions
+//! - Supporting dispute/resolve/chargeback operations
+//! - Validating transaction ownership
+
 use rust_decimal::Decimal;
 use std::collections::{HashMap, HashSet};
 

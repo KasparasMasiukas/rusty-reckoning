@@ -1,4 +1,10 @@
+//! CSV serialization and deserialization utilities.
+//!
+//! Provides generic functions for reading and writing CSV data.
+
 use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::io::Write;
 use std::path::Path;
 
 /// Creates an iterator that reads CSV records from a file.
@@ -12,6 +18,21 @@ where
         .trim(csv::Trim::All)
         .from_path(path)?
         .into_deserialize())
+}
+
+/// Writes an iterator of records to a CSV writer.
+/// Each record must implement Serialize.
+pub fn write_csv<T, W>(writer: W, records: impl Iterator<Item = T>) -> csv::Result<()>
+where
+    T: Serialize,
+    W: Write,
+{
+    let mut wtr = csv::Writer::from_writer(writer);
+    for record in records {
+        wtr.serialize(record)?;
+    }
+    wtr.flush()?;
+    Ok(())
 }
 
 #[cfg(test)]

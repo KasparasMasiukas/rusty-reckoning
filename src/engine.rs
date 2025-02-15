@@ -1,6 +1,17 @@
+//! Core transaction processing engine for the payment system.
+//!
+//! The engine is responsible for:
+//! - Processing deposits, withdrawals, and dispute-related transactions
+//! - Maintaining account balances and states
+//! - Enforcing business rules like insufficient funds checks and account locks
+//!
+//! The [`Engine`] struct serves as the main entry point for transaction processing,
+//! coordinating between the accounts and transactions stores while ensuring
+//! data consistency and transaction validity.
+
 use rust_decimal::Decimal;
 
-use crate::{AccountsStore, Error, Transaction, TransactionType, TransactionsStore};
+use crate::{Account, AccountsStore, Error, Transaction, TransactionType, TransactionsStore};
 
 #[derive(Default)]
 pub struct Engine {
@@ -110,5 +121,9 @@ impl Engine {
         account.held -= amount;
         account.locked = true;
         Ok(())
+    }
+
+    pub fn accounts(&self) -> impl Iterator<Item = &Account> {
+        self.accounts.iter()
     }
 }
