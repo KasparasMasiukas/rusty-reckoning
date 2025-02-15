@@ -17,6 +17,7 @@ pub enum Error {
     InsufficientFunds,
     InvalidTransaction,
     TransactionAlreadyDisputed,
+    TransactionClientMismatch,
     TransactionNotDisputed,
     TransactionNotFound,
 }

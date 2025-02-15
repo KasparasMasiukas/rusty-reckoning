@@ -229,4 +229,99 @@ mod tests {
             "client,available,held,total,locked\n1,1.2345,2.3456,3.5800,false\n"
         );
     }
+
+    #[test]
+    fn test_account_to_account_row_conversion() {
+        let test_cases = vec![
+            // Basic case with available funds only
+            (
+                Account {
+                    id: 1,
+                    available: dec!(100.5),
+                    held: dec!(0.0),
+                    locked: false,
+                },
+                AccountRow {
+                    client: 1,
+                    available: dec!(100.5),
+                    held: dec!(0.0),
+                    total: dec!(100.5),
+                    locked: false,
+                },
+            ),
+            // Case with both available and held funds
+            (
+                Account {
+                    id: 2,
+                    available: dec!(50.25),
+                    held: dec!(25.25),
+                    locked: false,
+                },
+                AccountRow {
+                    client: 2,
+                    available: dec!(50.25),
+                    held: dec!(25.25),
+                    total: dec!(75.50),
+                    locked: false,
+                },
+            ),
+            // Locked account case
+            (
+                Account {
+                    id: 3,
+                    available: dec!(-50.0),
+                    held: dec!(0.0),
+                    locked: true,
+                },
+                AccountRow {
+                    client: 3,
+                    available: dec!(-50.0),
+                    held: dec!(0.0),
+                    total: dec!(-50.0),
+                    locked: true,
+                },
+            ),
+            // Zero balance case
+            (
+                Account {
+                    id: 4,
+                    available: dec!(0.0),
+                    held: dec!(0.0),
+                    locked: false,
+                },
+                AccountRow {
+                    client: 4,
+                    available: dec!(0.0),
+                    held: dec!(0.0),
+                    total: dec!(0.0),
+                    locked: false,
+                },
+            ),
+            // High precision case
+            (
+                Account {
+                    id: 5,
+                    available: dec!(100.1234),
+                    held: dec!(50.5678),
+                    locked: true,
+                },
+                AccountRow {
+                    client: 5,
+                    available: dec!(100.1234),
+                    held: dec!(50.5678),
+                    total: dec!(150.6912),
+                    locked: true,
+                },
+            ),
+        ];
+
+        for (account, expected_row) in test_cases {
+            let row = AccountRow::from(&account);
+            assert_eq!(row.client, expected_row.client);
+            assert_eq!(row.available, expected_row.available);
+            assert_eq!(row.held, expected_row.held);
+            assert_eq!(row.total, expected_row.total);
+            assert_eq!(row.locked, expected_row.locked);
+        }
+    }
 }

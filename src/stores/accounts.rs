@@ -68,3 +68,112 @@ impl AccountsStore {
         self.accounts.values()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    #[test]
+    fn test_new_store_is_empty() {
+        let store = AccountsStore::new();
+        assert!(store.iter().next().is_none());
+    }
+
+    #[test]
+    fn test_get_or_create_new_account() {
+        let mut store = AccountsStore::new();
+        let account = store.get_or_create_mut(1);
+
+        assert_eq!(account.id, 1);
+        assert_eq!(account.available, Decimal::ZERO);
+        assert_eq!(account.held, Decimal::ZERO);
+        assert!(!account.locked);
+    }
+
+    #[test]
+    fn test_get_existing_account() {
+        let mut store = AccountsStore::new();
+
+        // Create account first
+        {
+            let account = store.get_or_create_mut(1);
+            account.available = dec!(100);
+        }
+
+        // Get it again
+        let account = store.get_mut(1).unwrap();
+        assert_eq!(account.available, dec!(100));
+    }
+
+    #[test]
+    fn test_get_nonexistent_account() {
+        let mut store = AccountsStore::new();
+        assert!(matches!(store.get_mut(1), Err(Error::AccountNotFound)));
+    }
+
+    #[test]
+    fn test_account_lock_check() {
+        let mut store = AccountsStore::new();
+
+        // New account should pass lock check
+        {
+            store.get_or_create_mut(1);
+        }
+        assert!(store.check_account_lock(1).is_ok());
+
+        // Lock the account
+        let account = store.get_or_create_mut(1);
+        account.locked = true;
+
+        // Check should fail for locked account
+        assert!(matches!(
+            store.check_account_lock(1),
+            Err(Error::AccountLocked)
+        ));
+
+        // Non-existent account should pass lock check
+        assert!(store.check_account_lock(2).is_ok());
+    }
+
+    #[test]
+    fn test_account_total() {
+        let mut store = AccountsStore::new();
+        let account = store.get_or_create_mut(1);
+
+        account.available = dec!(100.50);
+        account.held = dec!(50.25);
+
+        assert_eq!(account.total(), dec!(150.75));
+    }
+
+    #[test]
+    fn test_store_iterator() {
+        let mut store = AccountsStore::new();
+
+        // Create a few accounts
+        store.get_or_create_mut(1).available = dec!(100);
+        store.get_or_create_mut(2).available = dec!(200);
+        store.get_or_create_mut(3).available = dec!(300);
+
+        let total_available: Decimal = store.iter().map(|acc| acc.available).sum();
+
+        assert_eq!(total_available, dec!(600));
+    }
+
+    #[test]
+    fn test_multiple_get_or_create_same_account() {
+        let mut store = AccountsStore::new();
+
+        // First creation
+        let account = store.get_or_create_mut(1);
+        account.available = dec!(100);
+
+        // Second get_or_create should return the same account
+        let account = store.get_or_create_mut(1);
+        assert_eq!(account.available, dec!(100));
+
+        // Ensure only one account exists
+        assert_eq!(store.iter().count(), 1);
+    }
+}

@@ -45,8 +45,17 @@ impl TransactionsStore {
         self.processed_transactions.insert(tx);
     }
 
-    /// Stores a deposit transaction to track its dispute status.
-    pub fn store_deposit(&mut self, tx: u32, client: u16, amount: Decimal) {
+    /// Stores a new deposit transaction to track its dispute status.
+    /// Returns an error if the deposit with the same transaction ID already exists.
+    pub fn store_new_deposit(
+        &mut self,
+        tx: u32,
+        client: u16,
+        amount: Decimal,
+    ) -> Result<(), Error> {
+        if self.deposits.contains_key(&tx) {
+            return Err(Error::DuplicateTransaction);
+        }
         self.deposits.insert(
             tx,
             StoredDeposit {
@@ -55,6 +64,7 @@ impl TransactionsStore {
                 disputed: false,
             },
         );
+        Ok(())
     }
 
     /// Gets a stored deposit entry if it exists, and validates that it belongs to the client.
@@ -66,8 +76,172 @@ impl TransactionsStore {
             .get_mut(&tx)
             .ok_or(Error::TransactionNotFound)?;
         if deposit.client != client {
-            return Err(Error::InvalidTransaction);
+            return Err(Error::TransactionClientMismatch);
         }
         Ok(deposit)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    #[test]
+    fn test_new_store_is_empty() {
+        let mut store = TransactionsStore::new();
+        assert!(!store.is_processed(1));
+        assert!(store.get_mut_deposit(1, 1).is_err());
+    }
+
+    #[test]
+    fn test_mark_and_check_processed() {
+        let mut store = TransactionsStore::new();
+
+        // Initially not processed
+        assert!(!store.is_processed(1));
+
+        // Mark as processed
+        store.mark_processed(1);
+        assert!(store.is_processed(1));
+
+        // Other transactions still not processed
+        assert!(!store.is_processed(2));
+    }
+
+    #[test]
+    fn test_store_and_get_deposit() {
+        let mut store = TransactionsStore::new();
+        let tx = 1;
+        let client = 1;
+        let amount = dec!(100.50);
+
+        // Store deposit
+        store.store_new_deposit(tx, client, amount).unwrap();
+
+        // Retrieve and verify
+        let deposit = store.get_mut_deposit(client, tx).unwrap();
+        assert_eq!(deposit.client, client);
+        assert_eq!(deposit.amount, amount);
+        assert!(!deposit.disputed);
+    }
+
+    #[test]
+    fn test_get_nonexistent_deposit() {
+        let mut store = TransactionsStore::new();
+        assert!(matches!(
+            store.get_mut_deposit(1, 1),
+            Err(Error::TransactionNotFound)
+        ));
+    }
+
+    #[test]
+    fn test_get_deposit_wrong_client() {
+        let mut store = TransactionsStore::new();
+        let tx = 1;
+        let client = 1;
+        let amount = dec!(100);
+
+        // Store deposit for client 1
+        store.store_new_deposit(tx, client, amount).unwrap();
+
+        // Try to access with client 2
+        assert!(matches!(
+            store.get_mut_deposit(2, tx),
+            Err(Error::TransactionClientMismatch)
+        ));
+    }
+
+    #[test]
+    fn test_duplicate_tx_different_clients() {
+        let mut store = TransactionsStore::new();
+        let tx = 1;
+
+        // Create deposit for first client
+        store.store_new_deposit(tx, 1, dec!(100)).unwrap();
+
+        // Attempt to create deposit with same tx for different client
+        let result = store.store_new_deposit(tx, 2, dec!(200));
+        assert!(matches!(result, Err(Error::DuplicateTransaction)));
+
+        // Verify original deposit remains unchanged
+        let deposit = store.get_mut_deposit(1, tx).unwrap();
+        assert_eq!(deposit.client, 1);
+        assert_eq!(deposit.amount, dec!(100));
+    }
+
+    #[test]
+    fn test_deposit_dispute_status() {
+        let mut store = TransactionsStore::new();
+        let tx = 1;
+        let client = 1;
+
+        store.store_new_deposit(tx, client, dec!(100)).unwrap();
+
+        // Modify dispute status
+        {
+            let deposit = store.get_mut_deposit(client, tx).unwrap();
+            deposit.disputed = true;
+        }
+
+        // Verify status persists
+        let deposit = store.get_mut_deposit(client, tx).unwrap();
+        assert!(deposit.disputed);
+    }
+
+    #[test]
+    fn test_multiple_deposits_same_client() {
+        let mut store = TransactionsStore::new();
+        let client = 1;
+
+        // Store multiple deposits
+        store.store_new_deposit(1, client, dec!(100)).unwrap();
+        store.store_new_deposit(2, client, dec!(200)).unwrap();
+
+        // Verify each deposit independently to avoid multiple mutable borrows
+        {
+            let deposit1 = store.get_mut_deposit(client, 1).unwrap();
+            assert_eq!(deposit1.amount, dec!(100));
+        }
+        {
+            let deposit2 = store.get_mut_deposit(client, 2).unwrap();
+            assert_eq!(deposit2.amount, dec!(200));
+        }
+    }
+
+    #[test]
+    fn test_overwrite_deposit_should_fail() {
+        let mut store = TransactionsStore::new();
+        let tx = 1;
+        let client = 1;
+
+        // Store initial deposit
+        store.store_new_deposit(tx, client, dec!(100)).unwrap();
+
+        // Attempt to overwrite with new amount
+        let result = store.store_new_deposit(tx, client, dec!(200));
+        assert!(matches!(result, Err(Error::DuplicateTransaction)));
+
+        // Verify original amount remains
+        let deposit = store.get_mut_deposit(client, tx).unwrap();
+        assert_eq!(deposit.amount, dec!(100));
+    }
+
+    #[test]
+    fn test_processed_and_stored_independence() {
+        let mut store = TransactionsStore::new();
+        let tx = 1;
+        let client = 1;
+
+        // Mark as processed without storing
+        store.mark_processed(tx);
+        assert!(store.is_processed(tx));
+        assert!(store.get_mut_deposit(client, tx).is_err());
+
+        // Store without marking as processed
+        let tx2 = 2;
+        store.store_new_deposit(tx2, client, dec!(100)).unwrap();
+        assert!(!store.is_processed(tx2));
+        assert!(store.get_mut_deposit(client, tx2).is_ok());
     }
 }

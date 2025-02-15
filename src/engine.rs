@@ -57,7 +57,7 @@ impl Engine {
             return Err(Error::DuplicateTransaction);
         }
 
-        self.transactions.store_deposit(tx, client, amount);
+        self.transactions.store_new_deposit(tx, client, amount)?;
         let account = self.accounts.get_or_create_mut(client);
         account.available += amount;
         self.transactions.mark_processed(tx);

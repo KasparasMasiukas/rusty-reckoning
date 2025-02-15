@@ -38,7 +38,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{dto::Transaction, TransactionType};
+    use crate::{dto::AccountRow, dto::Transaction, TransactionType};
     use rust_decimal_macros::dec;
 
     #[test]
@@ -80,6 +80,56 @@ mod tests {
         ];
         assert_eq!(transactions, expected_transactions);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_write_csv() -> csv::Result<()> {
+        let accounts = vec![
+            AccountRow {
+                client: 1,
+                available: dec!(1.5),
+                held: dec!(0.0),
+                total: dec!(1.5),
+                locked: false,
+            },
+            AccountRow {
+                client: 2,
+                available: dec!(2.0),
+                held: dec!(3.1234),
+                total: dec!(5.1234),
+                locked: true,
+            },
+            AccountRow {
+                client: 3,
+                available: dec!(0.0),
+                held: dec!(0.0),
+                total: dec!(0.0),
+                locked: false,
+            },
+            // Test rounding behavior
+            AccountRow {
+                client: 4,
+                available: dec!(1.23456),
+                held: dec!(2.34567),
+                total: dec!(3.58009),
+                locked: false,
+            },
+        ];
+
+        let mut output = vec![];
+        write_csv(&mut output, accounts.into_iter())?;
+
+        let csv_string = String::from_utf8(output).unwrap();
+        let expected = "\
+client,available,held,total,locked
+1,1.5,0.0,1.5,false
+2,2.0,3.1234,5.1234,true
+3,0.0,0.0,0.0,false
+4,1.2345,2.3456,3.5800,false
+";
+
+        assert_eq!(csv_string, expected);
         Ok(())
     }
 }
