@@ -14,7 +14,7 @@ pub enum TransactionType {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct TransactionDto {
+pub struct Transaction {
     #[serde(rename = "type")]
     pub tx_type: TransactionType,
     pub client: u16,
@@ -36,7 +36,7 @@ mod tests {
     use super::*;
     use rust_decimal_macros::dec;
 
-    fn parse_csv_row(row: &str) -> Result<TransactionDto, csv::Error> {
+    fn parse_csv_row(row: &str) -> Result<Transaction, csv::Error> {
         let data_with_header = format!("type,client,tx,amount\n{}", row);
         let mut reader = csv::Reader::from_reader(data_with_header.as_bytes());
         reader.deserialize().next().unwrap()
@@ -46,7 +46,7 @@ mod tests {
     fn test_parse_deposit() {
         assert_eq!(
             parse_csv_row("deposit,1,1,0.1234").unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Deposit,
                 client: 1,
                 tx: 1,
@@ -59,7 +59,7 @@ mod tests {
     fn test_parse_withdrawal() {
         assert_eq!(
             parse_csv_row("withdrawal,2,2,1.5").unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Withdrawal,
                 client: 2,
                 tx: 2,
@@ -72,7 +72,7 @@ mod tests {
     fn test_parse_dispute() {
         assert_eq!(
             parse_csv_row("dispute,1,1,").unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Dispute,
                 client: 1,
                 tx: 1,
@@ -85,7 +85,7 @@ mod tests {
     fn test_parse_resolve() {
         assert_eq!(
             parse_csv_row("resolve,1,1,").unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Resolve,
                 client: 1,
                 tx: 1,
@@ -98,7 +98,7 @@ mod tests {
     fn test_parse_chargeback() {
         assert_eq!(
             parse_csv_row("chargeback,1,1,").unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Chargeback,
                 client: 1,
                 tx: 1,
@@ -135,7 +135,7 @@ mod tests {
     fn test_max_valid_ids() {
         assert_eq!(
             parse_csv_row(&format!("deposit,{},{},1.0", u16::MAX, u32::MAX)).unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Deposit,
                 client: u16::MAX,
                 tx: u32::MAX,
@@ -148,7 +148,7 @@ mod tests {
     fn test_rounds_to_4_decimal_places() {
         assert_eq!(
             parse_csv_row("deposit,1,1,0.12345").unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Deposit,
                 client: 1,
                 tx: 1,
@@ -158,7 +158,7 @@ mod tests {
 
         assert_eq!(
             parse_csv_row("deposit,1,1,0.123499999").unwrap(),
-            TransactionDto {
+            Transaction {
                 tx_type: TransactionType::Deposit,
                 client: 1,
                 tx: 1,

@@ -2,7 +2,7 @@ use std::env;
 use std::error::Error;
 use std::process;
 
-use rusty_reckoning::{dto, Engine, read_csv};
+use rusty_reckoning::{dto, read_csv, Engine};
 
 fn main() {
     if let Err(err) = run() {
@@ -17,9 +17,9 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Err("Usage: cargo run -- transactions.csv".into());
     }
     let mut engine = Engine::new();
-    let transactions_iter = read_csv::<dto::TransactionDto, _>(&args[1])?;
+    let transactions_iter = read_csv::<dto::Transaction, _>(&args[1])?;
     // TODO: Process transactions
-    for transaction in transactions_iter.flatten() { // Ignore errors for now
+    for transaction in transactions_iter.flatten() {
         let _ = engine.process_transaction(transaction); // TODO: Handle errors
     }
     Ok(())
