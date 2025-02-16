@@ -247,6 +247,7 @@ mod tests {
         ));
 
         assert!(matches!(result, Err(Error::AccountNotFound)));
+        assert!(engine.accounts().next().is_none());
     }
 
     #[test]
@@ -389,6 +390,21 @@ mod tests {
             engine.process_transaction(create_transaction(TransactionType::Dispute, 1, 999, None));
 
         assert!(matches!(result, Err(Error::TransactionNotFound)));
+    }
+
+    #[test]
+    fn test_dispute_resolve_chargeback_nonexistent_account() {
+        let mut engine = Engine::new();
+        let types = [
+            TransactionType::Dispute,
+            TransactionType::Resolve,
+            TransactionType::Chargeback,
+        ];
+        for tx_type in types {
+            let result = engine.process_transaction(create_transaction(tx_type, 1, 1, None));
+            assert!(matches!(result, Err(Error::TransactionNotFound)));
+            assert!(engine.accounts().next().is_none());
+        }
     }
 
     #[test]
