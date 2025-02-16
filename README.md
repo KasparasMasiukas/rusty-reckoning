@@ -6,26 +6,30 @@
 Settling disputes and ensuring fair trade on the high seas. 🌊
 
 ### Running
+Run the engine with one of the example data files provided, e.g.:
 ```
-cargo run -- data/example_input.csv
+cargo run -- data/10_clients.csv
 ```
+The output rows are sorted by client id for easier predictable testing.
 
 ### Testing
 The crate includes a comprehensive test suite. To run it:
 ```
 cargo test
 ```
+Or, for 10x faster execution, run:
+```
+cargo test --release
+```
 
 Additionally, the `examples/generator.rs` can be used to generate a CSV file with transactions for a given number of clients:
 ```
-cargo run --example generator 1000 > data/1000_clients.csv
+cargo run --example generator 100 > data/100_clients.csv
 ```
 
-The generator script is deterministic, and allows for easy verification of the engine's output correctness (see **Maths** in `examples/generator.rs` for details):
-```
-cargo run -- data/10_clients.csv
-```
-
+The generator script is deterministic, and allows for easy verification of the engine's output correctness (see **Maths** in `examples/generator.rs` for details). A couple of generated files have been included in the repo for testing:
+* `data/10_clients.csv` - 10 clients, 1000 total transactions
+* `data/10K_clients.csv` - 10,000 clients, 1M total transactions
 
 ### Assumptions
 Note: Each assumption is covered by a test.
@@ -42,3 +46,24 @@ Note: Each assumption is covered by a test.
     * Same with dispute/resolve/chargeback transactions - they would be rejected with reason `TransactionNotFound` before any client record is created. (`test_dispute_resolve_chargeback_nonexistent_account`)
 * If a transaction is disputed and then resolved, the same transaction **can** be disputed again. (`test_redispute_after_resolve`)
     * There is no mention of this not being allowed in the spec, so we keep the logic simple and allow it.
+
+### Benchmarks
+The crate includes a benchmark for the engine's throughput, measured with `criterion`, using the 1M transactions input file.
+The benchmark measures the time including file streaming, CSV parsing, transaction processing, and CSV serialization for the output.
+It does not include the time writing to stdout (a `NoopWriter` is used for the benchmark).
+
+To run the benchmark:
+```
+cargo bench
+```
+
+Results:
+```
+Insert results here
+```
+
+#### System Information
+* CPU Model: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz
+* Architecture: x86_64
+* Total RAM: 31Gi
+* L3 Cache: 12 MiB

@@ -82,13 +82,13 @@ mod tests {
     }
 
     #[test]
-    fn test_100_clients() -> Result<(), Box<dyn Error>> {
+    fn test_10000_clients() -> Result<(), Box<dyn Error>> {
         let mut output = Vec::new();
-        run("data/100_clients.csv", &mut output)?;
+        run("data/10K_clients.csv", &mut output)?;
 
         // Build expected CSV output dynamically (see examples/generator.rs for maths).
         let mut expected = String::from("client,available,held,total,locked\n");
-        for i in 1..=100 {
+        for i in 1..=10000 {
             if i % 2 == 1 {
                 // Odd client: available = 270*i, held = 10*i, total = 280*i, locked false.
                 expected.push_str(&format!("{},{},{},{},false\n", i, 270 * i, 10 * i, 280 * i));

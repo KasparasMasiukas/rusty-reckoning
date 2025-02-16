@@ -16,3 +16,8 @@ serde = { version = "1.0.217", features = ["derive"] }
 
 [dev-dependencies]
 rust_decimal_macros = "1.36.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "throughput"
+harness = false
