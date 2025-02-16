@@ -159,7 +159,7 @@ mod tests {
     #[tokio::test]
     async fn test_invalid_csv() {
         let mut output = Vec::new();
-        let result = run("data/invalid_csv.csv", &mut output).await;
+        let result = run("data/invalid.csv", &mut output).await;
 
         // The error should be propagated from the CSV reader
         assert!(result.is_err());
