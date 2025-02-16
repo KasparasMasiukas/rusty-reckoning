@@ -11,7 +11,11 @@
 
 use rust_decimal::Decimal;
 
-use crate::{Account, AccountsStore, Error, Transaction, TransactionType, TransactionsStore};
+use crate::{
+    dto::{Transaction, TransactionType},
+    stores::{Account, AccountsStore, TransactionsStore},
+    Error,
+};
 
 #[derive(Default)]
 pub struct Engine {

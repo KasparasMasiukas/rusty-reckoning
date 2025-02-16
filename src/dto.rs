@@ -7,7 +7,7 @@
 //! It also includes serialization/deserialization helpers for handling decimal numbers
 //! with 4 decimal places precision.
 
-use crate::Account;
+use crate::stores::Account;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
 use serde::de::Deserializer;

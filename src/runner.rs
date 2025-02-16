@@ -2,7 +2,11 @@ use std::error::Error;
 use std::io::Write;
 use std::path::Path;
 
-use crate::{read_csv_into_iter, write_csv, AccountRow, Engine, Transaction};
+use crate::{
+    csv_utils::{read_csv_into_iter, write_csv},
+    dto::{AccountRow, Transaction},
+    Engine,
+};
 
 /// Runs the payment engine on the given input file and writes results to the provided writer.
 ///
