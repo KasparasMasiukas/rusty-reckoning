@@ -67,7 +67,6 @@ async fn read_transactions(
     let file = File::open(input_path).await?;
     let mut csv_reader = AsyncReaderBuilder::new()
         .has_headers(true)
-        .flexible(true)
         .trim(Trim::All)
         .create_deserializer(file);
 

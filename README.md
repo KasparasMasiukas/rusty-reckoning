@@ -16,7 +16,7 @@ An example has been added for running the engine asynchronously using tokio runt
 ```
 cargo run --example async_main data/10_clients.csv
 ```
-However, due to the sequential nature of processing, benchmarks show that the synchronous single-threaded implementation is faster.
+However, since processing is entirely sequential and CPU-bound, benchmarks ([see below](#benchmarks)) show that the synchronous single-threaded implementation is faster. More on that in the [Sync vs Async](#sync-vs-async) section.
 
 ### Testing
 The crate includes a comprehensive test suite. To run it:
@@ -63,6 +63,7 @@ Note: Each assumption is covered by a test. Other more obvious assumptions/edge 
 Additionally:
 * Transactions are streamed from the input file, and processed immediately as they arrive.
 * No unsafe Rust is used; all operations are memory-safe.
+* The library implements and exports both sync and async runners for the engine, but `main.rs` uses the sync version for its performance.
 
 ### Memory Requirements
 While the system is designed to be memory-efficient, it assumes the machine has enough heap space to store the minimum transaction-related data necessary to support all operations.
@@ -79,26 +80,30 @@ Worst case memory requirements are tied to the number of possible unique transac
 4.29B * (4 + 20 + 4) = ~120GB (excluding HashMap/HashSet overhead)
 ```
 
-This is well within the limits of modern cloud compute. For reference, at the time of writing, AWS (US East) `x2gd.4xlarge` (256 GB RAM) has an on-demand hourly rate of $1.336, translating to $11.7K USD per annum.
+This is well within the limits of modern cloud compute. For reference, at the time of writing, AWS (US East) `x2gd.4xlarge` (256 GB RAM) has an on-demand hourly rate of \$1.336, translating to $11.7K USD per annum.
 
 ### Benchmarks
-The crate includes a benchmark for the engine's throughput, measured with `criterion`, using the 1M transactions input file.
-The benchmark measures the time including file streaming, CSV parsing, transaction processing, and CSV serialization for the output.
-It does not include the time writing to stdout (a `NoopWriter` is used for the benchmark).
+The crate includes benchmarks for the engine's throughput, measured with `criterion`, using the 1M transactions input file.
+The benchmarks measure the time including file streaming, CSV parsing, transaction processing, and CSV serialization for the output.
+It does not include the time writing to stdout at the end of processing (a `NoopWriter` is used for the benchmark).
 
-To run the benchmark:
+To run the benchmarks:
 ```
 cargo bench
 ```
 
-The system achieves a throughput of **1.6M tx / sec** on the testing machine.
 
-Results:
+#### Results
 ```
-throughput/process_10K_clients_1M_transactions
-                        time:   [610.27 ms 612.29 ms 614.43 ms]
-                        thrpt:  [1.6275 Melem/s 1.6332 Melem/s 1.6386 Melem/s]
+throughput/sync_process_10K_clients_1M_transactions
+                        time:   [562.85 ms 567.81 ms 573.79 ms]
+                        thrpt:  [1.7428 Melem/s 1.7611 Melem/s 1.7767 Melem/s]
+throughput/async_process_10K_clients_1M_transactions
+                        time:   [855.24 ms 905.74 ms 958.41 ms]
+                        thrpt:  [1.0434 Melem/s 1.1041 Melem/s 1.1693 Melem/s]
 ```
+
+The system achieves a throughput of **1.7M tx / sec** on the testing machine running in synchronous, single-threaded mode (avg: **600ns / tx**).
 
 #### System Information
 * CPU Model: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz
@@ -106,3 +111,12 @@ throughput/process_10K_clients_1M_transactions
 * Total RAM: 31Gi
 * L3 Cache: 12 MiB
 * Disk: Samsung SSD 970 EVO Plus 1TB (Seq. Read Speed: Up to 3,500 MB/s)
+
+### Sync vs Async
+A wise person once asked: *"What if your code was bundled in a server, and these CSVs came from thousands of concurrent TCP streams?"*
+
+For a single CSV file, the sync version is faster, because the workload is entirely sequential, in-memory, and CPU-bound. The overhead of async task scheduling, context switching, and channel messaging outweighs the benefits of the only async I/O, which is file reading. Additionally, the `csv-async` crate used might be less optimized than its sync `csv` counterpart.
+
+That said, the async version would support higher throughput if we had multiple producers feeding transactions into the MPSC channel for the engine to consume, allowing concurrent parsing and ingestion to better utilize async I/O.
+
+`cargo run` performs fully synchronous, single-threaded processing, but the library provides both sync and async runners. The async runner is demonstrated in the `async_main.rs` example.
