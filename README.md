@@ -10,6 +10,23 @@ Settling disputes and ensuring fair trade on the high seas. 🌊
 cargo run -- data/example_input.csv
 ```
 
+### Testing
+The crate includes a comprehensive test suite. To run it:
+```
+cargo test
+```
+
+Additionally, the `examples/generator.rs` can be used to generate a CSV file with transactions for a given number of clients:
+```
+cargo run --example generator 1000 > data/1000_clients.csv
+```
+
+The generator script is deterministic, and allows for easy verification of the engine's output correctness (see **Maths** in `examples/generator.rs` for details):
+```
+cargo run -- data/10_clients.csv
+```
+
+
 ### Assumptions
 Note: Each assumption is covered by a test.
 * Deposit and withdrawal transaction amounts must be positive (>0), otherwise the transaction is rejected. (`test_deposit_non_positive_amount`, `test_withdrawal_non_positive_amount`)
