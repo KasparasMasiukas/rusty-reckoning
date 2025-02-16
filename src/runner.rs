@@ -52,11 +52,53 @@ mod tests {
         let mut output = Vec::new();
         run("data/example_input.csv", &mut output)?;
 
-        let expected = br#"client,available,held,total,locked
+        let expected = "client,available,held,total,locked
 1,1.5,0,1.5,false
 2,2,0,2,false
-"#;
-        assert_eq!(output, expected);
+";
+        assert_eq!(String::from_utf8(output)?, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_10_clients() -> Result<(), Box<dyn Error>> {
+        let mut output = Vec::new();
+        run("data/10_clients.csv", &mut output)?;
+
+        let expected = "client,available,held,total,locked
+1,270,10,280,false
+2,580,0,580,true
+3,810,30,840,false
+4,1160,0,1160,true
+5,1350,50,1400,false
+6,1740,0,1740,true
+7,1890,70,1960,false
+8,2320,0,2320,true
+9,2430,90,2520,false
+10,2900,0,2900,true
+";
+        assert_eq!(String::from_utf8(output)?, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_10000_clients() -> Result<(), Box<dyn Error>> {
+        let mut output = Vec::new();
+        run("data/10K_clients.csv", &mut output)?;
+
+        // Build expected CSV output dynamically (see examples/generator.rs for maths).
+        let mut expected = String::from("client,available,held,total,locked\n");
+        for i in 1..=10000 {
+            if i % 2 == 1 {
+                // Odd client: available = 270*i, held = 10*i, total = 280*i, locked false.
+                expected.push_str(&format!("{},{},{},{},false\n", i, 270 * i, 10 * i, 280 * i));
+            } else {
+                // Even client: available = 290*i, held = 0, total = 290*i, locked true.
+                expected.push_str(&format!("{},{},{},{},true\n", i, 290 * i, 0, 290 * i));
+            }
+        }
+
+        assert_eq!(String::from_utf8(output)?, expected);
         Ok(())
     }
 }

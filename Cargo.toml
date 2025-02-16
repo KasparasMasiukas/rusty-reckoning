@@ -2,6 +2,7 @@
 name = "rusty-reckoning"
 version = "0.1.0"
 edition = "2021"
+default-run = "rusty-reckoning"
 
 [profile.release]
 opt-level = 3
@@ -15,3 +16,8 @@ serde = { version = "1.0.217", features = ["derive"] }
 
 [dev-dependencies]
 rust_decimal_macros = "1.36.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "throughput"
+harness = false
