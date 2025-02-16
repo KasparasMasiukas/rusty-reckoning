@@ -22,7 +22,7 @@ Or, for 10x faster execution, run:
 cargo test --release
 ```
 
-Additionally, the `examples/generator.rs` can be used to generate a CSV file with transactions for a given number of clients:
+Additionally, the `examples/generator.rs` can be used to generate a CSV file with transactions for a given number of clients, e.g.:
 ```
 cargo run --example generator 100 > data/100_clients.csv
 ```
@@ -57,9 +57,13 @@ To run the benchmark:
 cargo bench
 ```
 
+The system achieves a throughput of **1.6M tx / sec** on the testing machine.
+
 Results:
 ```
-Insert results here
+throughput/process_10K_clients_1M_transactions
+                        time:   [610.27 ms 612.29 ms 614.43 ms]
+                        thrpt:  [1.6275 Melem/s 1.6332 Melem/s 1.6386 Melem/s]
 ```
 
 #### System Information
@@ -67,3 +71,4 @@ Insert results here
 * Architecture: x86_64
 * Total RAM: 31Gi
 * L3 Cache: 12 MiB
+* Disk: Samsung SSD 970 EVO Plus 1TB (Seq. Read Speed: Up to 3,500 MB/s)
