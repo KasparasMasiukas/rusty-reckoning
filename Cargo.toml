@@ -11,12 +11,15 @@ codegen-units = 1
 
 [dependencies]
 csv = "1.3.1"
+csv-async = { version = "1.3.0", features = ["with_serde", "tokio"] }
 rust_decimal = { version = "1.36.0", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive"] }
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "fs", "macros", "sync"] }
+tokio-stream = "0.1.17"
 
 [dev-dependencies]
 rust_decimal_macros = "1.36.0"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 
 [[bench]]
 name = "throughput"

@@ -101,4 +101,15 @@ mod tests {
         assert_eq!(String::from_utf8(output)?, expected);
         Ok(())
     }
+
+    #[test]
+    fn test_invalid_csv() {
+        let mut output = Vec::new();
+        let result = run("data/invalid.csv", &mut output);
+
+        // The error should be propagated from the CSV reader
+        assert!(result.is_err());
+        // The output should be empty since we encountered an error
+        assert!(output.is_empty());
+    }
 }
