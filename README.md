@@ -7,7 +7,7 @@ Settling disputes and ensuring fair trade on the high seas. 🌊
 
 ### Running
 ```
-cargo run -- example_input.csv
+cargo run -- data/example_input.csv
 ```
 
 ### Assumptions
@@ -18,7 +18,7 @@ Note: Each assumption is covered by a test.
     * This matches the spec, saying that "available funds should decrease" and "held funds should increase" - this would not make sense if withdrawals could be disputed.
     * Additionally, it makes sense logically - if a client successfully withdraws funds, disputing it would be meaningless.
 * Disputes may cause the account's available funds to go to negative. (`test_chargeback_results_in_negative_balance`)
-    * E.g. a client deposits $100, withdraws $50 (available = $50), then disputes the deposit. Result: available = $-50, held = $100. Then if chargeback occurs, the client's account will be locked with $-50 total funds.
+    * E.g. a client deposits \$100, withdraws \$50 (available = \$50), then disputes the deposit. Result: available = \$-50, held = \$100. Then if chargeback occurs, the client's account will be locked with \$-50 total funds.
 * Once an account is locked, no further transactions are processed for that account. (`test_locked_account_rejects_transactions`)
 * A new client record can only be created as part of their first deposit transaction. 
     * A withdrawal attempt from a non-existent client will be rejected without creating a record. (`test_withdrawal_from_nonexistent_account`)
