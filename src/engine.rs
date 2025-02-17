@@ -17,6 +17,7 @@ use crate::{
     Error,
 };
 
+/// Core transaction processing engine for the payment system.
 #[derive(Default)]
 pub struct Engine {
     accounts: AccountsStore,
@@ -31,6 +32,9 @@ impl Engine {
         }
     }
 
+    /// Processes a transaction and updates the internal state if valid.  
+    /// Returns a domain [`Error`] if the transaction can't be processed due to
+    /// invalid state.
     pub fn process_transaction(&mut self, transaction: Transaction) -> Result<(), Error> {
         self.accounts.check_account_lock(transaction.client)?;
 
@@ -86,7 +90,7 @@ impl Engine {
     }
 
     fn process_dispute(&mut self, client: u16, tx: u32) -> Result<(), Error> {
-        let deposit = self.transactions.get_mut_deposit(client, tx)?;
+        let deposit = self.transactions.get_deposit_mut(client, tx)?;
         if deposit.disputed {
             return Err(Error::TransactionAlreadyDisputed);
         }
@@ -100,7 +104,7 @@ impl Engine {
     }
 
     fn process_resolve(&mut self, client: u16, tx: u32) -> Result<(), Error> {
-        let deposit = self.transactions.get_mut_deposit(client, tx)?;
+        let deposit = self.transactions.get_deposit_mut(client, tx)?;
         if !deposit.disputed {
             return Err(Error::TransactionNotDisputed);
         }
@@ -114,7 +118,7 @@ impl Engine {
     }
 
     fn process_chargeback(&mut self, client: u16, tx: u32) -> Result<(), Error> {
-        let deposit = self.transactions.get_mut_deposit(client, tx)?;
+        let deposit = self.transactions.get_deposit_mut(client, tx)?;
         if !deposit.disputed {
             return Err(Error::TransactionNotDisputed);
         }
@@ -127,6 +131,8 @@ impl Engine {
         Ok(())
     }
 
+    /// Returns an iterator over all accounts that had at least one valid deposit.
+    /// Provides no guarantees about the order of the accounts.
     pub fn accounts(&self) -> impl Iterator<Item = &Account> {
         self.accounts.iter()
     }

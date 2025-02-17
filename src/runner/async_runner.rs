@@ -18,6 +18,7 @@ const BUFFER_SIZE: usize = 1024;
 type Result<T, E = Box<dyn Error + Send + Sync>> = std::result::Result<T, E>;
 
 /// Runs the payment engine async on the given input file and writes results to the provided writer.
+///
 /// Spawns two tasks:
 /// * CSV reader - streams transactions from the input file, deserializes them and sends them to the processor via channel.
 /// * Processor - receives transactions from the channel and processes them until the channel is closed.
@@ -165,5 +166,20 @@ mod tests {
         assert!(result.is_err());
         // The output should be empty since we encountered an error
         assert!(output.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_dispute_with_amount() -> Result<()> {
+        let mut output = Vec::new();
+        // The input file contains dispute, resolve, and chargeback transactions with amounts.
+        // All transactions are accepted, but the amounts are ignored for dispute/resolve/chargeback.
+        run("data/dispute_with_amount.csv", &mut output).await?;
+
+        let expected = "client,available,held,total,locked
+1,1,0,1,false
+2,0,0,0,true
+";
+        assert_eq!(String::from_utf8(output)?, expected);
+        Ok(())
     }
 }

@@ -70,7 +70,7 @@ impl TransactionsStore {
     /// Gets a stored deposit entry if it exists, and validates that it belongs to the client.
     /// Returns a mutable reference to the deposit, or an error if the deposit does not exist or
     /// belongs to a different client.
-    pub fn get_mut_deposit(&mut self, client: u16, tx: u32) -> Result<&mut StoredDeposit, Error> {
+    pub fn get_deposit_mut(&mut self, client: u16, tx: u32) -> Result<&mut StoredDeposit, Error> {
         let deposit = self
             .deposits
             .get_mut(&tx)
@@ -91,7 +91,7 @@ mod tests {
     fn test_new_store_is_empty() {
         let mut store = TransactionsStore::new();
         assert!(!store.is_processed(1));
-        assert!(store.get_mut_deposit(1, 1).is_err());
+        assert!(store.get_deposit_mut(1, 1).is_err());
     }
 
     #[test]
@@ -120,7 +120,7 @@ mod tests {
         store.store_new_deposit(tx, client, amount).unwrap();
 
         // Retrieve and verify
-        let deposit = store.get_mut_deposit(client, tx).unwrap();
+        let deposit = store.get_deposit_mut(client, tx).unwrap();
         assert_eq!(deposit.client, client);
         assert_eq!(deposit.amount, amount);
         assert!(!deposit.disputed);
@@ -130,7 +130,7 @@ mod tests {
     fn test_get_nonexistent_deposit() {
         let mut store = TransactionsStore::new();
         assert!(matches!(
-            store.get_mut_deposit(1, 1),
+            store.get_deposit_mut(1, 1),
             Err(Error::TransactionNotFound)
         ));
     }
@@ -147,7 +147,7 @@ mod tests {
 
         // Try to access with client 2
         assert!(matches!(
-            store.get_mut_deposit(2, tx),
+            store.get_deposit_mut(2, tx),
             Err(Error::TransactionClientMismatch)
         ));
     }
@@ -165,7 +165,7 @@ mod tests {
         assert!(matches!(result, Err(Error::DuplicateTransaction)));
 
         // Verify original deposit remains unchanged
-        let deposit = store.get_mut_deposit(1, tx).unwrap();
+        let deposit = store.get_deposit_mut(1, tx).unwrap();
         assert_eq!(deposit.client, 1);
         assert_eq!(deposit.amount, dec!(100));
     }
@@ -180,12 +180,12 @@ mod tests {
 
         // Modify dispute status
         {
-            let deposit = store.get_mut_deposit(client, tx).unwrap();
+            let deposit = store.get_deposit_mut(client, tx).unwrap();
             deposit.disputed = true;
         }
 
         // Verify status persists
-        let deposit = store.get_mut_deposit(client, tx).unwrap();
+        let deposit = store.get_deposit_mut(client, tx).unwrap();
         assert!(deposit.disputed);
     }
 
@@ -200,11 +200,11 @@ mod tests {
 
         // Verify each deposit independently to avoid multiple mutable borrows
         {
-            let deposit1 = store.get_mut_deposit(client, 1).unwrap();
+            let deposit1 = store.get_deposit_mut(client, 1).unwrap();
             assert_eq!(deposit1.amount, dec!(100));
         }
         {
-            let deposit2 = store.get_mut_deposit(client, 2).unwrap();
+            let deposit2 = store.get_deposit_mut(client, 2).unwrap();
             assert_eq!(deposit2.amount, dec!(200));
         }
     }
@@ -223,7 +223,7 @@ mod tests {
         assert!(matches!(result, Err(Error::DuplicateTransaction)));
 
         // Verify original amount remains
-        let deposit = store.get_mut_deposit(client, tx).unwrap();
+        let deposit = store.get_deposit_mut(client, tx).unwrap();
         assert_eq!(deposit.amount, dec!(100));
     }
 
@@ -236,12 +236,12 @@ mod tests {
         // Mark as processed without storing
         store.mark_processed(tx);
         assert!(store.is_processed(tx));
-        assert!(store.get_mut_deposit(client, tx).is_err());
+        assert!(store.get_deposit_mut(client, tx).is_err());
 
         // Store without marking as processed
         let tx2 = 2;
         store.store_new_deposit(tx2, client, dec!(100)).unwrap();
         assert!(!store.is_processed(tx2));
-        assert!(store.get_mut_deposit(client, tx2).is_ok());
+        assert!(store.get_deposit_mut(client, tx2).is_ok());
     }
 }

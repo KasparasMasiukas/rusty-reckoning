@@ -11,6 +11,7 @@ use std::collections::HashMap;
 
 use crate::Error;
 
+/// Account state including balance and lock status.
 #[derive(Debug)]
 pub struct Account {
     pub id: u16,
@@ -64,6 +65,8 @@ impl AccountsStore {
         self.accounts.get_mut(&client).ok_or(Error::AccountNotFound)
     }
 
+    /// Returns an iterator over all accounts.
+    /// Provides no guarantees about the order of the accounts.
     pub fn iter(&self) -> impl Iterator<Item = &Account> {
         self.accounts.values()
     }

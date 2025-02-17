@@ -23,10 +23,6 @@ The crate includes a comprehensive test suite. To run it:
 ```
 cargo test
 ```
-Or, for 10x faster execution, run:
-```
-cargo test --release
-```
 
 Additionally, the `examples/generator.rs` can be used to generate a CSV file with transactions for a given number of clients, e.g.:
 ```
@@ -46,6 +42,7 @@ Test file composition by transaction type:
 
 ### Assumptions
 * Input CSV parsing is strict - any malformed records or invalid data will cause the runner to return with error, and the program to exit with code 1. (`test_invalid_csv`)
+  * That said, dispute/resolve/chargeback transactions with amounts are accepted - the amounts are simply ignored. (`test_dispute_with_amount`)
 * Deposit and withdrawal transaction amounts must be positive (>0), otherwise the transaction is rejected. (`test_deposit_non_positive_amount`, `test_withdrawal_non_positive_amount`)
 * When parsing amounts, we round down to 4 decimal places. E.g. input amount 0.123499999 will be parsed as 0.1234. (`test_rounds_to_4_decimal_places`)
 * Only deposits can be disputed. (`test_dispute_resolve_chargeback_only_for_deposits`)
@@ -89,7 +86,7 @@ The data structures used are:
 
 Worst case memory requirements are tied to the number of possible unique transactions to fill the u32 space (4.29B). In the worst case, if all 4.29B transactions are deposits, the memory usage would be:
 ```
-4.29B * (4 + 20 + 4) = ~120GB (excluding HashMap/HashSet overhead)
+4.29B * (4 + 20 + 4) bytes = ~120GB (excluding HashMap/HashSet overhead)
 ```
 
 This is well within the limits of modern cloud compute. For reference, at the time of writing, AWS (US East) `x2gd.4xlarge` (256 GB RAM) has an on-demand hourly rate of \$1.336, translating to $11.7K USD per annum.

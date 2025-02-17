@@ -15,6 +15,7 @@ use serde::ser::Serializer;
 use serde::Deserialize;
 use serde::Serialize;
 
+/// Transaction type supported by the engine.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionType {
@@ -25,6 +26,7 @@ pub enum TransactionType {
     Chargeback,
 }
 
+/// Input transaction for the engine to process.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Transaction {
     #[serde(rename = "type")]
@@ -59,7 +61,7 @@ impl From<&Account> for AccountRow {
     }
 }
 
-pub fn deserialize_decimal_4dp<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
+fn deserialize_decimal_4dp<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -67,7 +69,7 @@ where
         .map(|opt_dec| opt_dec.map(|dec| dec.round_dp_with_strategy(4, RoundingStrategy::ToZero)))
 }
 
-pub fn serialize_decimal_4dp<S>(decimal: &Decimal, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_decimal_4dp<S>(decimal: &Decimal, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

@@ -112,4 +112,19 @@ mod tests {
         // The output should be empty since we encountered an error
         assert!(output.is_empty());
     }
+
+    #[test]
+    fn test_dispute_with_amount() -> Result<(), Box<dyn Error>> {
+        let mut output = Vec::new();
+        // The input file contains dispute, resolve, and chargeback transactions with amounts.
+        // All transactions are accepted, but the amounts are ignored for dispute/resolve/chargeback.
+        run("data/dispute_with_amount.csv", &mut output)?;
+
+        let expected = "client,available,held,total,locked
+1,1,0,1,false
+2,0,0,0,true
+";
+        assert_eq!(String::from_utf8(output)?, expected);
+        Ok(())
+    }
 }
